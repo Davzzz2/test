@@ -4,7 +4,7 @@
     <link rel="stylesheet" href="styles.css">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stake Mines Generator</title>
+    <title>Gamble Assist</title>
     <link rel="icon" href="favicon.png" type="image/png">
 </head>
 <body>
@@ -14,28 +14,51 @@
         <a href="http://kick.com/enjayy" target="_blank">Enjayy's Kick</a>
         <a href="http://stake.com/?c=penny" target="_blank">Code PENNY on Stake</a>
     </div>
+    <div class="announcement">
+        <strong>Updates Posted in Discord</strong>
+    </div>
     <div class="container">
-        <h1 class="header">Stake Mines Generator by Dave</h1>
+        <h1 class="header">Mines Assistant</h1>
         <div class="wrapper">
             <div>
-                <h2>Minesweeper</h2>
                 <form id="minesForm">
-                    <label for="mines">Number of Mines:</label>
-                    <input type="number" id="mines" name="mines" min="1" max="24" required>
-                    <label for="diamonds">Number of Diamonds:</label>
-                    <input type="number" id="diamonds" name="diamonds" min="1" max="25" required>
-                    <label for="betSize">Bet Size:</label>
-                    <div class="bet-controls">
+                    <div class="form-group">
+                        <label for="mines">Number of Mines:</label>
+                        <input type="number" id="mines" name="mines" min="1" max="24" required>
+                        <label for="diamonds">Number of Diamonds:</label>
+                        <input type="number" id="diamonds" name="diamonds" min="1" max="25" required>
+                        <label for="betSize">Bet Size:</label>
                         <input type="number" id="betSize" name="betSize" step="0.01" min="0.01" required>
                         <button type="button" onclick="doubleBet()">2x</button>
                         <button type="button" onclick="halveBet()">1/2</button>
+                        <button type="button" onclick="generateMinesBoard()">Generate Mines Board</button>
+                        <button type="button" id="randomizeButton" onclick="randomizeMinesAndDiamonds()" disabled>Randomize</button>
+                        <label class="switch">
+                            <input type="checkbox" id="toggleRandomization" onclick="toggleRandomizationFields()">
+                            <span class="slider round"></span>
+                        </label>
                     </div>
-                    <button type="button" onclick="generateMinesBoard()">Generate Mines Board</button>
+                    <div id="randomizationFields" class="form-group">
+                        <label for="minMines">Min Mines:</label>
+                        <input type="number" id="minMines" name="minMines" min="0" max="24" value="0">
+                        <label for="maxMines">Max Mines:</label>
+                        <input type="number" id="maxMines" name="maxMines" min="0" max="24" value="24">
+                        <label for="minDiamonds">Min Diamonds:</label>
+                        <input type="number" id="minDiamonds" name="minDiamonds" min="0" max="24" value="0">
+                        <label for="maxDiamonds">Max Diamonds:</label>
+                        <input type="number" id="maxDiamonds" name="maxDiamonds" min="0" max="24" value="24">
+                    </div>
                 </form>
                 <div id="minesBoard"></div>
-                <div id="minesResults"></div>
+                <div id="minesResults">
+                    <p>Winning Chance: <span id="winningChance">0.000%</span></p>
+                    <p>Minimal increase on loss: <span id="minIncreaseLoss">x0.000</span></p>
+                </div>
             </div>
         </div>
+    </div>
+    <div class="footer">
+        <strong>Made by Dave</strong>
     </div>
     <script src="script.js"></script>
 </body>
