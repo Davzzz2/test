@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blackjack Assistant</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #111;
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            border: 2px solid #333;
+            border-radius: 10px;
+            padding: 20px;
+            background: #000;
+        }
+
+        h1 {
+            text-align: center;
+            color: #fff;
+            margin: 0 0 20px 0;
+            font-size: 2.5em;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .card {
+            background: #222;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1.2em;
+            user-select: none;
+        }
+
+        .card:hover {
+            background: #2a2a2a;
+            border-color: #444;
+        }
+
+        .card.selected {
+            background: #333;
+            border-color: #00ff88;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+        }
+
+        .selection-display {
+            margin: 20px 0;
+            padding: 15px;
+            background: #1a1a1a;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+
+        button {
+            background: #00ff88;
+            color: #000;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            display: block;
+            width: 100%;
+            margin: 20px 0;
+        }
+
+        button:hover {
+            background: #00cc6a;
+            transform: translateY(-2px);
+        }
+
+        #result {
+            padding: 20px;
+            background: #1a1a1a;
+            border-radius: 8px;
+            border: 1px solid #333;
+            font-size: 1.2em;
+            text-align: center;
+        }
+
+        .result-good {
+            color: #00ff88;
+            border-color: #00ff88;
+        }
+
+        .result-warning {
+            color: #ffaa00;
+            border-color: #ffaa00;
+        }
+
+        .result-bad {
+            color: #ff4444;
+            border-color: #ff4444;
+        }
+
+        select {
+            background: #333;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 8px;
+            border-radius: 5px;
+            margin: 10px 0;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>BLACKJACK STRATEGY ASSISTANT</h1>
+        
+        <select id="strategy">
+            <option value="basic">Basic Strategy</option>
+            <option value="advanced">Advanced Strategy</option>
+            <option value="reverse">Reverse Strategy</option>
+        </select>
+
+        <div class="selection-display">
+            <h3>Your Cards: <span id="player-cards-display">None selected</span></h3>
+            <h3>Dealer's Card: <span id="dealer-card-display">None selected</span></h3>
+        </div>
+
+        <h2>Select Your Cards</h2>
+        <div class="card-grid" id="player-card-grid"></div>
+
+        <h2>Select Dealer's Card</h2>
+        <div class="card-grid" id="dealer-card-grid"></div>
+
+        <button onclick="calculateMove()">CALCULATE BEST MOVE</button>
+        <div id="result"></div>
+        <button onclick="resetSelections()" style="background: #444; color: #fff;">RESET CARDS</button>
+    </div>
+
+    <script>
+        // Card configuration
+        const cards = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+        const suits = ['♠', '♥', '♦', '♣'];
+        let selectedPlayerCards = [];
+        let selectedDealerCard = null;
+
+        // Initialize card grids
+        function createCardGrid(container, isDealer = false) {
+            container.innerHTML = '';
+            cards.forEach(value => {
+                suits.forEach(suit => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.dataset.value = value === '10' ? '10' : value[0];
+                    card.innerHTML = `<div class="card-value">${value}</div><div class="card-suit">${suit}</div>`;
+                    
+                    card.onclick = () => {
+                        if (isDealer) {
+                            if (selectedDealerCard === card) {
+                                card.classList.remove('selected');
+                                selectedDealerCard = null;
+                            } else {
+                                if (selectedDealerCard) selectedDealerCard.classList.remove('selected');
+                                card.classList.add('selected');
+                                selectedDealerCard = card;
+                            }
+                        } else {
+                            if (selectedPlayerCards.includes(card)) {
+                                card.classList.remove('selected');
+                                selectedPlayerCards = selectedPlayerCards.filter(c => c !== card);
+                            } else if (selectedPlayerCards.length < 2) {
+                                card.classList.add('selected');
+                                selectedPlayerCards.push(card);
+                            }
+                        }
+                        updateDisplays();
+                    };
+                    container.appendChild(card);
+                });
+            });
+        }
+
+        function updateDisplays() {
+            document.getElementById('player-cards-display').textContent = 
+                selectedPlayerCards.map(c => c.dataset.value).join(' + ') || 'None selected';
+            
+            document.getElementById('dealer-card-display').textContent = 
+                (selectedDealerCard?.dataset.value || 'None selected');
+        }
+
+        // Strategy implementation
+        const basicStrategy = {
+            // Hard totals
+            '8-false:2': 'Hit', '8-false:3': 'Hit', '8-false:4': 'Hit', '8-false:5': 'Hit',
+            '8-false:6': 'Hit', '8-false:7': 'Hit', '8-false:8': 'Hit', '8-false:9': 'Hit',
+            '8-false:10': 'Hit', '8-false:A': 'Hit',
+            '9-false:2': 'Double', '9-false:3': 'Double', '9-false:4': 'Double', '9-false:5': 'Double',
+            '9-false:6': 'Double', '9-false:7': 'Hit', '9-false:8': 'Hit', '9-false:9': 'Hit',
+            '9-false:10': 'Hit', '9-false:A': 'Hit',
+            '10-false:2': 'Double', '10-false:3': 'Double', '10-false:4': 'Double', '10-false:5': 'Double',
+            '10-false:6': 'Double', '10-false:7': 'Double', '10-false:8': 'Double', '10-false:9': 'Double',
+            '10-false:10': 'Hit', '10-false:A': 'Hit',
+            '11-false:2': 'Double', '11-false:3': 'Double', '11-false:4': 'Double', '11-false:5': 'Double',
+            '11-false:6': 'Double', '11-false:7': 'Double', '11-false:8': 'Double', '11-false:9': 'Double',
+            '11-false:10': 'Double', '11-false:A': 'Hit',
+            '12-false:2': 'Hit', '12-false:3': 'Hit', '12-false:4': 'Stand', '12-false:5': 'Stand',
+            '12-false:6': 'Stand', '12-false:7': 'Hit', '12-false:8': 'Hit', '12-false:9': 'Hit',
+            '12-false:10': 'Hit', '12-false:A': 'Hit',
+            '13-false:2': 'Stand', '13-false:3': 'Stand', '13-false:4': 'Stand', '13-false:5': 'Stand',
+            '13-false:6': 'Stand', '13-false:7': 'Hit', '13-false:8': 'Hit', '13-false:9': 'Hit',
+            '13-false:10': 'Hit', '13-false:A': 'Hit',
+            '14-false:2': 'Stand', '14-false:3': 'Stand', '14-false:4': 'Stand', '14-false:5': 'Stand',
+            '14-false:6': 'Stand', '14-false:7': 'Hit', '14-false:8': 'Hit', '14-false:9': 'Hit',
+            '14-false:10': 'Hit', '14-false:A': 'Hit',
+            '15-false:2': 'Stand', '15-false:3': 'Stand', '15-false:4': 'Stand', '15-false:5': 'Stand',
+            '15-false:6': 'Stand', '15-false:7': 'Hit', '15-false:8': 'Hit', '15-false:9': 'Hit',
+            '15-false:10': 'Surrender', '15-false:A': 'Hit',
+            '16-false:2': 'Stand', '16-false:3': 'Stand', '16-false:4': 'Stand', '16-false:5': 'Stand',
+            '16-false:6': 'Stand', '16-false:7': 'Hit', '16-false:8': 'Hit', '16-false:9': 'Surrender',
+            '16-false:10': 'Surrender', '16-false:A': 'Surrender',
+            '17-false:2': 'Stand', '17-false:3': 'Stand', '17-false:4': 'Stand', '17-false:5': 'Stand',
+            '17-false:6': 'Stand', '17-false:7': 'Stand', '17-false:8': 'Stand', '17-false:9': 'Stand',
+            '17-false:10': 'Stand', '17-false:A': 'Stand',
+
+            // Soft totals
+            '13-true:2': 'Hit', '13-true:3': 'Hit', '13-true:4': 'Hit', '13-true:5': 'Double',
+            '13-true:6': 'Double', '13-true:7': 'Hit', '13-true:8': 'Hit', '13-true:9': 'Hit',
+            '13-true:10': 'Hit', '13-true:A': 'Hit',
+            '14-true:2': 'Hit', '14-true:3': 'Hit', '14-true:4': 'Double', '14-true:5': 'Double',
+            '14-true:6': 'Double', '14-true:7': 'Hit', '14-true:8': 'Hit', '14-true:9': 'Hit',
+            '14-true:10': 'Hit', '14-true:A': 'Hit',
+            '15-true:2': 'Double', '15-true:3': 'Double', '15-true:4': 'Double', '15-true:5': 'Double',
+            '15-true:6': 'Double', '15-true:7': 'Hit', '15-true:8': 'Hit', '15-true:9': 'Hit',
+            '15-true:10': 'Hit', '15-true:A': 'Hit',
+            '16-true:2': 'Double', '16-true:3': 'Double', '16-true:4': 'Double', '16-true:5': 'Double',
+            '16-true:6': 'Double', '16-true:7': 'Hit', '16-true:8': 'Hit', '16-true:9': 'Hit',
+            '16-true:10': 'Hit', '16-true:A': 'Hit',
+            '17-true:2': 'Double', '17-true:3': 'Double', '17-true:4': 'Double', '17-true:5': 'Double',
+            '17-true:6': 'Double', '17-true:7': 'Hit', '17-true:8': 'Hit', '17-true:9': 'Hit',
+            '17-true:10': 'Hit', '17-true:A': 'Hit',
+            '18-true:2': 'Stand', '18-true:3': 'Double', '18-true:4': 'Double', '18-true:5': 'Double',
+            '18-true:6': 'Double', '18-true:7': 'Stand', '18-true:8': 'Stand', '18-true:9': 'Hit',
+            '18-true:10': 'Hit', '18-true:A': 'Stand',
+            '19-true:2': 'Stand', '19-true:3': 'Stand', '19-true:4': 'Stand', '19-true:5': 'Stand',
+            '19-true:6': 'Stand', '19-true:7': 'Stand', '19-true:8': 'Stand', '19-true:9': 'Stand',
+            '19-true:10': 'Stand', '19-true:A': 'Stand',
+
+            // Splits
+            'A:A:2': 'Split', 'A:A:3': 'Split', 'A:A:4': 'Split', 'A:A:5': 'Split',
+            'A:A:6': 'Split', 'A:A:7': 'Split', 'A:A:8': 'Split', 'A:A:9': 'Split',
+            'A:A:10': 'Split', 'A:A:A': 'Split'
+        };
+
+        function calculateMove() {
+            if (selectedPlayerCards.length !== 2 || !selectedDealerCard) {
+                alert('Please select 2 player cards and 1 dealer card');
+                return;
+            }
+
+            const playerValues = selectedPlayerCards.map(c => c.dataset.value);
+            const dealerValue = selectedDealerCard.dataset.value;
+            const strategy = document.getElementById('strategy').value;
+
+            // Convert face cards to 10
+            const numericValues = playerValues.map(v => 
+                ['J','Q','K'].includes(v) ? '10' : v
+            );
+
+            // Calculate total and check for soft hand
+            let total = 0;
+            let aces = 0;
+
+            numericValues.forEach(v => {
+                if (v === 'A') {
+                    aces++;
+                    total += 11;
+                } else {
+                    total += parseInt(v);
+                }
+            });
+
+            // Adjust for bust with aces
+            while (total > 21 && aces > 0) {
+                total -= 10;
+                aces--;
+            }
+
+            const isSoft = aces > 0 && total <= 21;
+            const key = `${total}-${isSoft}:${dealerValue}`;
+
+            let advice = basicStrategy[key] || 'Stand';
+
+            // Advanced strategy adjustments
+            if (strategy === 'advanced') {
+                if (total === 16 && dealerValue === '10' && numericValues.length >= 4) {
+                    advice = "Stand (Multi-card)";
+                }
+                if (total === 15 && dealerValue === '10' && numericValues.includes('A')) {
+                    advice = "Surrender";
+                }
+            }
+
+            // Reverse strategy
+            if (strategy === 'reverse') {
+                const reverseMap = {
+                    'Hit': 'Stand',
+                    'Stand': 'Hit',
+                    'Double': 'Stand',
+                    'Surrender': 'Stand',
+                    'Split': "Don't split"
+                };
+                advice = reverseMap[advice] || 'Stand';
+            }
+
+            // Display result with styling
+            const resultElement = document.getElementById('result');
+            resultElement.textContent = `Recommended Move: ${advice}`;
+            resultElement.className = 'result-good';
+            
+            if (advice.includes('Hit') || advice.includes('Surrender')) {
+                resultElement.className = 'result-warning';
+            }
+            if (advice.includes('Surrender')) {
+                resultElement.className = 'result-bad';
+            }
+        }
+
+        function resetSelections() {
+            selectedPlayerCards.forEach(c => c.classList.remove('selected'));
+            selectedPlayerCards = [];
+            if (selectedDealerCard) {
+                selectedDealerCard.classList.remove('selected');
+                selectedDealerCard = null;
+            }
+            updateDisplays();
+            document.getElementById('result').textContent = '';
+        }
+
+        // Initialize card grids
+        window.onload = () => {
+            createCardGrid(document.getElementById('player-card-grid'));
+            createCardGrid(document.getElementById('dealer-card-grid'), true);
+        };
+    </script>
+</body>
+</html>
